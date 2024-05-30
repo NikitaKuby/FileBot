@@ -3,27 +3,33 @@ package ru.test.demobot.service;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.test.demobot.database.entites.Document;
 import ru.test.demobot.database.entites.User;
+import ru.test.demobot.database.repository.DocumentRepository;
 import ru.test.demobot.database.repository.NumberRepository;
 import ru.test.demobot.database.repository.UserRepository;
 import ru.test.demobot.enums.TypeStates;
 import ru.test.demobot.enums.TypeUserCommands;
+import ru.test.demobot.model.Command;
+import ru.test.demobot.model.CommandBuilder;
 import ru.test.demobot.model.OffsetStore;
-import ru.test.demobot.modelDTO.MessageDTO;
-import ru.test.demobot.modelDTO.MessageSendDTO;
-import ru.test.demobot.modelDTO.UpdateDTO;
+import ru.test.demobot.modelDTO.*;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 @AllArgsConstructor
 public class TelegramService {
     private OffsetStore offsetStore;
-    TelegramClient telegramClient;
+    private TelegramClient telegramClient;
     private UserRepository userRepository;
+    private DocumentRepository documentRepository;
     private NumberRepository numberRepository;
+    private CommandBuilder commandBuilder;
 
     public void processing(List<UpdateDTO> updates) {
 
@@ -53,18 +59,174 @@ public class TelegramService {
 
        switch (update.getType()){
             case TEXT:
-                //processingText(update.getMessage());
-                telegramClient.sendMessage(new MessageSendDTO(chatId, telegramClient.translateRuInEn(update.getMessage().getText())));
+                processingText(update.getMessage());
                 break;
             case FILE:
-                //processingFile(update.getMessage());
-                telegramClient.sendMessage(new MessageSendDTO(chatId, "Это файл"));
+                processingFile(update.getMessage());
                 break;
             case OTHER:
                 telegramClient.nonUnderstandCommand(chatId);
         }
     }
 
+    private void processingText(MessageDTO message) {
+        Long chatId = message.getChat().getId();
+        Long userId = message.getFrom().getId();
+        boolean delete = userRepository.findByIdAndCommandAndState(
+                userId,
+                TypeUserCommands.DELETE.getTitle(),
+                TypeStates.PROCESSING.getTitle()).isPresent();
+        if (isUploadDone(message)) {
+            return;
+        }
+        if (isDeleteDone(message)) {
+            return;
+        }
+        if (delete) {
+            deleteFiles(message);
+            return;
+        }
+        Command command = commandBuilder.parseToCommand(message);
+        switch (command.getTypeCommand()) {
+            case VIEW:
+                viewFiles(message, true);
+                break;
+            case UPLOAD:
+                uploadFilesStart(message);
+                break;
+            case DELETE:
+                deleteFilesStart(message);
+                break;
+            default:
+                telegramClient.nonUnderstandCommand(chatId);
+
+        }
+    }
+    private void processingFile(MessageDTO message) {
+        Long userId = message.getFrom().getId();
+        boolean upload = userRepository.findByIdAndCommandAndState(
+                userId,
+                TypeUserCommands.UPLOAD.getTitle(),
+                TypeStates.PROCESSING.getTitle()).isPresent();
+        if (true) {
+            uploadFiles(message);
+        }
+    }
+
+    private void uploadFiles(MessageDTO message) {
+        DocumentDTO document = message.getDocument();
+        Document documentToSave = new Document(document.getFileId(), document.getFileName(), document.getFileUniqueId(),
+                document.getFileSize(), new User(message.getFrom().getId()));
+        documentRepository.save(documentToSave);
+    }
+
+
+    private void uploadFilesStart(MessageDTO message) {
+        telegramClient.uploadCommand(message.getChat().getId());
+        User userUploadProcessing = userRepository.findById(message.getFrom().getId())
+                .orElse(new User(message.getFrom().getId()));
+        userUploadProcessing.setCommand(TypeUserCommands.UPLOAD.getTitle());
+        userUploadProcessing.setState(TypeStates.PROCESSING.getTitle());
+        userRepository.save(userUploadProcessing);
+    }
+
+    private Boolean isUploadDone(MessageDTO message) {
+        Long userId = message.getFrom().getId();
+        String uploadDone = "Файлы загруженны!";
+        Optional<User> processingUploadUser = userRepository.findByIdAndCommandAndState(userId,
+                TypeUserCommands.UPLOAD.getTitle(),
+                TypeStates.PROCESSING.getTitle());
+        if (processingUploadUser.isPresent() && !Objects.equals(message.getText(), "Готово")) {
+            telegramClient.incorrectFile(message.getChat().getId());
+            return true;
+        }
+        if (processingUploadUser.isPresent() && Objects.equals(message.getText(), "Готово")) {
+            saveDoneState(message, processingUploadUser.get(), uploadDone);
+            return true;
+        }
+        return false;
+
+    }
+
+
+    private void deleteFiles(MessageDTO message) {
+        if (documentRepository.findByUserIdAndFileName(
+                message.getFrom().getId(), message.getText()).isPresent()) {
+            Document documentForDelete = documentRepository.findByUserIdAndFileName(
+                    message.getFrom().getId(), message.getText()).get();
+            documentRepository.delete(documentForDelete);
+        } else {
+            telegramClient.nonExistentFile(message.getChat().getId());
+        }
+
+    }
+
+    private void deleteFilesStart(MessageDTO message) {
+        List<String> documentNameList = documentRepository.findByUserId(message.getFrom().getId()).stream()
+                .map(Document::getName)
+                .collect(Collectors.toList());
+        if (documentNameList.isEmpty()) {
+            telegramClient.emptyFile(message.getChat().getId());
+            return;
+        }
+        telegramClient.deleteCommand(message.getChat().getId(), documentNameList, "Какие файлы вы хотите удалить?");
+        viewFiles(message, false);
+        User userDeleteProcessing = userRepository.findById(message.getFrom().getId())
+                .orElse(new User(message.getFrom().getId()));
+        userDeleteProcessing.setCommand(TypeUserCommands.DELETE.getTitle());
+        userDeleteProcessing.setState("processing");
+        userRepository.save(userDeleteProcessing);
+    }
+
+    private boolean isDeleteDone(MessageDTO message) {
+        Long userId = message.getFrom().getId();
+        String deleteDone = "Файлы удалены!";
+        Optional<User> userDeleteProcessing = userRepository.
+                findByIdAndCommandAndState(userId,
+                        TypeUserCommands.DELETE.getTitle(),
+                        TypeStates.PROCESSING.getTitle());
+        if (userDeleteProcessing.isPresent() && documentRepository.findByUserIdAndFileName(
+                userId,
+                message.getText()).isPresent()) {
+            return false;
+        }
+        if (documentRepository.findByUserIdAndFileName(
+                userId,
+                message.getText()).isEmpty() &&
+                !(Objects.equals(message.getText(), "Готово"))) {
+            return false;
+        }
+        if (userDeleteProcessing.isPresent() && Objects.equals(message.getText(), "Готово")) {
+            saveDoneState(message, userDeleteProcessing.get(), deleteDone);
+            return true;
+        }
+        return false;
+    }
+
+
+
+    private void viewFiles(MessageDTO message, Boolean all) {
+        List<Document> documentList;
+        if (all) {
+            documentList = documentRepository.findAll();
+        } else {
+            documentList = documentRepository.findByUserId(message.getFrom().getId());
+        }
+        List<DocumentSendDTO> documentSendDtoList = documentList.stream()
+                .map(document -> new DocumentSendDTO(
+                        message.getChat().getId(),
+                        document.getUser().getName(),
+                        document.getId())
+                )
+                .collect(Collectors.toList());
+        if (documentSendDtoList.size() == 0) {
+            telegramClient.emptyFile(message.getChat().getId());
+        }
+        for (DocumentSendDTO document : documentSendDtoList) {
+            telegramClient.sendDocument(document);
+        }
+
+    }
 
 
     private boolean isStart(MessageDTO message){

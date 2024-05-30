@@ -10,6 +10,6 @@ public enum TypeStates {
         }
 
     public String getTitle() {
-        return title;
+            return title;
     }
 }

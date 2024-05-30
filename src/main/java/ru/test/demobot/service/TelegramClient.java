@@ -64,8 +64,15 @@ public class TelegramClient {
         restTemplate.postForEntity(url, request, String.class);
     }
 
+    public void sendDocument(DocumentSendDTO document) {
+        String url = String.format("%s/bot%s/sendDocument", telegramUrl, botToken);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Gson gson = new GsonBuilder().create();
+        HttpEntity<String> request = new HttpEntity<>(gson.toJson(document), headers);
+        restTemplate.postForEntity(url, request, String.class);
 
-
+    }
 
     @SneakyThrows
     public String translateRuInEn(String ruText){
@@ -117,16 +124,71 @@ public class TelegramClient {
         sendMessage(infoMessage);
     }
 
+    public void uploadCommand(Long chatId) {
+        KeyDTO doneKey = new KeyDTO("Готово");
+
+        List<KeyDTO> inerList = new ArrayList<>();
+        inerList.add(doneKey);
+        List<List<KeyDTO>> listKey = new ArrayList<>();
+        listKey.add(inerList);
+
+        ReplyMarkupDTO replyMarkupDto = new ReplyMarkupDTO();
+        replyMarkupDto.setKeyboard(listKey);
+        replyMarkupDto.setOne_time_keyboard(true);
+        replyMarkupDto.setResize_keyboard(true);
+
+        MessageSendDTO uploadMessage = new MessageSendDTO(chatId, "Прикрипите ваши файлы для загрузки и" +
+                " нажмите на кнопку готово");
+        uploadMessage.setReply_markup(replyMarkupDto);
+        sendMessage(uploadMessage);
+
+    }
+
+    public void deleteCommand(Long chatId, List<String> nameList, String text) {
+        List<KeyDTO> inerList = new ArrayList<>();
+        List<List<KeyDTO>> listKey = new ArrayList<>();
+        listKey.add(inerList);
+        for (String name : nameList) {
+            KeyDTO key = new KeyDTO(name);
+            inerList.add(key);
+        }
+        inerList.add(new KeyDTO("Готово"));
+        ReplyMarkupDTO replyMarkupDto = new ReplyMarkupDTO();
+        replyMarkupDto.setKeyboard(listKey);
+        replyMarkupDto.setOne_time_keyboard(true);
+        replyMarkupDto.setResize_keyboard(true);
+
+        MessageSendDTO deleteMessage = new MessageSendDTO(chatId, text);
+        deleteMessage.setReply_markup(replyMarkupDto);
+        sendMessage(deleteMessage);
+    }
+
+
 
 
     public void incorrectNumber(Long userID) {
         MessageSendDTO warnMessage = new MessageSendDTO(userID, "Неккоректный номер телефона");
         sendMessage(warnMessage);
     }
+
+    public void incorrectFile(Long userID) {
+        MessageSendDTO warnMessage = new MessageSendDTO(userID, "Неккоректный file");
+        sendMessage(warnMessage);
+    }
     public void unAuth(Long chatId) {
         MessageSendDTO warnMessage = new MessageSendDTO(chatId, "Вы не смогли пройти авторизацию " +
                 "поробуйте снова");
         sendMessage(warnMessage);
+    }
+
+    public void nonExistentFile(Long chatId) {
+        MessageSendDTO warnMessage = new MessageSendDTO(chatId, "Такого файла не сущетсвует, " +
+                "выбирете из предоставленных вам");
+        sendMessage(warnMessage);
+    }
+    public void emptyFile(Long chatId) {
+        MessageSendDTO infoMessage = new MessageSendDTO(chatId, "К сожалению файлов пока нету (((");
+        sendMessage(infoMessage);
     }
 
 
