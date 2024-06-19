@@ -14,6 +14,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import ru.test.demobot.database.repository.UserRepository;
+import ru.test.demobot.enums.TypeUserCommands;
 import ru.test.demobot.model.OffsetStore;
 import ru.test.demobot.modelDTO.*;
 
@@ -24,6 +26,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
 
+
 @Slf4j
 @Component
 @ConfigurationProperties(prefix = "springbot.telegram-client")
@@ -33,6 +36,7 @@ public class TelegramClient {
     private String telegramUrl;
     private final RestTemplate restTemplate = new RestTemplate();
     public int updateIdMessage;
+    private UserRepository userRepository;
 
     @Autowired
     private OffsetStore offsetStore;
@@ -116,6 +120,9 @@ public class TelegramClient {
         sendMessage(authMessage);
     }
 
+
+
+
     public void commandDone(Long chatId, String text) {
         MessageSendDTO infoMessage = new MessageSendDTO(chatId, text);
         ReplyMarkupDTO deleteKeyBoard = new ReplyMarkupDTO();
@@ -143,6 +150,49 @@ public class TelegramClient {
         sendMessage(uploadMessage);
 
     }
+
+    public void menuCommand(Long chatId) {
+        KeyDTO translateKey = new KeyDTO("/translate");
+        KeyDTO docKey = new KeyDTO("/document");
+
+        List<KeyDTO> inerList = new ArrayList<>();
+        inerList.add(translateKey);
+        inerList.add(docKey);
+        List<List<KeyDTO>> listKey = new ArrayList<>();
+        listKey.add(inerList);
+
+
+        ReplyMarkupDTO replyMarkupDto = new ReplyMarkupDTO();
+        replyMarkupDto.setKeyboard(listKey);
+        replyMarkupDto.setOne_time_keyboard(true);
+        replyMarkupDto.setResize_keyboard(true);
+
+
+        MessageSendDTO uploadMessage = new MessageSendDTO(chatId, "Выберите режим работы бота");
+        uploadMessage.setReply_markup(replyMarkupDto);
+        sendMessage(uploadMessage);
+    }
+
+    public void pushStart(Long chatId){
+        KeyDTO doneKey = new KeyDTO("Запустить Бота!");
+
+        List<KeyDTO> inerList = new ArrayList<>();
+        inerList.add(doneKey);
+        List<List<KeyDTO>> listKey = new ArrayList<>();
+        listKey.add(inerList);
+
+        ReplyMarkupDTO replyMarkupDto = new ReplyMarkupDTO();
+        replyMarkupDto.setKeyboard(listKey);
+        replyMarkupDto.setOne_time_keyboard(true);
+        replyMarkupDto.setResize_keyboard(true);
+        replyMarkupDto.setInput_field_placeholder("/start");
+
+        MessageSendDTO uploadMessage = new MessageSendDTO(chatId, "Чтобы возобновить работу нажмите Запустить");
+        uploadMessage.setReply_markup(replyMarkupDto);
+        sendMessage(uploadMessage);
+
+    }
+
 
     public void deleteCommand(Long chatId, List<String> nameList, String text) {
         List<KeyDTO> inerList = new ArrayList<>();
@@ -188,6 +238,11 @@ public class TelegramClient {
     }
     public void emptyFile(Long chatId) {
         MessageSendDTO infoMessage = new MessageSendDTO(chatId, "К сожалению файлов пока нету (((");
+        sendMessage(infoMessage);
+    }
+
+    public void translateError(Long chatId) {
+        MessageSendDTO infoMessage = new MessageSendDTO(chatId, "Это не текст");
         sendMessage(infoMessage);
     }
 

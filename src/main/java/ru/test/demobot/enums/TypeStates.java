@@ -1,5 +1,8 @@
 package ru.test.demobot.enums;
 
+import lombok.Getter;
+
+@Getter
 public enum TypeStates {
         DONE("done"),
         PROCESSING("processing");
@@ -9,7 +12,4 @@ public enum TypeStates {
             this.title=title;
         }
 
-    public String getTitle() {
-            return title;
-    }
 }

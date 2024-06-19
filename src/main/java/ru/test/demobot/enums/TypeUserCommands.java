@@ -3,11 +3,12 @@ package ru.test.demobot.enums;
 public enum TypeUserCommands {
 
     UPLOAD("/upload"),
+    DOCUMENT("/document"),
     VIEW("/view"),
     DELETE("/delete"),
+    HELP("/help"),
     START("/start"),
     AUTH("/auth"),
-    HELP("/help"),
     CREATE("/create"),
     OTHER("");
 

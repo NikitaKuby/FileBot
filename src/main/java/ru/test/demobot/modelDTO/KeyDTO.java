@@ -11,6 +11,7 @@ public class KeyDTO {
         this.text = text;
     }
 
+
     public KeyDTO(String text, boolean request_contact) {
         this.text = text;
         this.request_contact = request_contact;

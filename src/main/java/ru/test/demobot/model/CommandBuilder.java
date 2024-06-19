@@ -1,5 +1,6 @@
 package ru.test.demobot.model;
 
+import ru.test.demobot.enums.TypeMenuCommands;
 import ru.test.demobot.enums.TypeUserCommands;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,6 +26,7 @@ public class CommandBuilder {
     private String adminPostfix;
 
     public Command parseToCommand(MessageDTO message) {
+
         TypeUserCommands typeUserCommands = TypeUserCommands.OTHER;
         List<String> args = new ArrayList<>();
         if (Objects.equals(message.getText(), TypeUserCommands.VIEW.getTitle()) ||
@@ -36,6 +38,7 @@ public class CommandBuilder {
                             .strip()
                             .split(" ")).collect(Collectors.toList());
         }
+
         if (Objects.equals(message.getText(), TypeUserCommands.DELETE.getTitle()) ||
                 message.getText().contains(TypeUserCommands.DELETE.getTitle() + adminPostfix)) {
             typeUserCommands = TypeUserCommands.DELETE;
@@ -56,7 +59,38 @@ public class CommandBuilder {
         if (Objects.equals(message.getText(), TypeUserCommands.UPLOAD.getTitle()))
             typeUserCommands = TypeUserCommands.UPLOAD;
 
+        TypeMenuCommands typeMenuCommands = TypeMenuCommands.OTHER;
+        if (Objects.equals(message.getText(), TypeMenuCommands.TRANSLATE.getTitle()) ||
+                message.getText().contains(TypeMenuCommands.TRANSLATE.getTitle() + adminPostfix)) {
+            typeMenuCommands = TypeMenuCommands.TRANSLATE;
+            args = Arrays.stream(
+                    message.getText()
+                            .replace(TypeMenuCommands.TRANSLATE.getTitle() + adminPostfix, "")
+                            .strip()
+                            .split(" ")).collect(Collectors.toList());
+        }
 
-        return new Command(typeUserCommands, args);
+        if (Objects.equals(message.getText(), TypeMenuCommands.FILEBUFFER.getTitle()) ||
+                message.getText().contains(TypeMenuCommands.FILEBUFFER.getTitle() + adminPostfix)) {
+            typeMenuCommands = TypeMenuCommands.FILEBUFFER;
+            args = Arrays.stream(
+                    message.getText()
+                            .replace(TypeMenuCommands.FILEBUFFER.getTitle() + adminPostfix, "")
+                            .strip()
+                            .split(" ")).collect(Collectors.toList());
+        }
+
+        if (Objects.equals(message.getText(), TypeMenuCommands.DELETEUSER.getTitle()) ||
+                message.getText().contains(TypeMenuCommands.DELETEUSER.getTitle() + adminPostfix)) {
+            typeMenuCommands = TypeMenuCommands.DELETEUSER;
+            args = Arrays.stream(
+                    message.getText()
+                            .replace(TypeMenuCommands.DELETEUSER.getTitle() + adminPostfix, "")
+                            .strip()
+                            .split(" ")).collect(Collectors.toList());
+        }
+
+
+        return new Command(typeUserCommands, typeMenuCommands,  args);
     }
 }

@@ -19,6 +19,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
                                               @Param("command") String command,
                                               @Param("state") String state);
 
+    @Query(nativeQuery = true, value = "DELETE FROM data_sources.users " +
+            "WHERE id = :userId ")
+    Optional<User> deleteUserById(@Param("userId") Long userId);
+
 
     Optional<User> findByNumber(String number);
 }

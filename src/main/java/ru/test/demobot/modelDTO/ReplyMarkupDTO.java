@@ -11,5 +11,6 @@ public class ReplyMarkupDTO {
     private Boolean resize_keyboard;
     private Boolean one_time_keyboard;
     private Boolean remove_keyboard;
+    private String input_field_placeholder;
     private List<List<KeyDTO>> keyboard;
 }

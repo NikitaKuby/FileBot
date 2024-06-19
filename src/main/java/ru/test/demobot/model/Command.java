@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.stereotype.Component;
+import ru.test.demobot.enums.TypeMenuCommands;
 import ru.test.demobot.enums.TypeUserCommands;
 
 import java.util.List;
@@ -16,5 +17,6 @@ import java.util.List;
 @NoArgsConstructor
 public class Command {
     private TypeUserCommands typeCommand;
+    private TypeMenuCommands typeMenuCommands;
     private List<String> args;
 }
